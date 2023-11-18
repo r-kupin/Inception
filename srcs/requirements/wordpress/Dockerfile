@@ -11,6 +11,13 @@ ARG PHP_VERSION=82 DB_NAME \
     WP_USER_PASS \
     WP_USER_MAIL
 
+ENV WP_ADMIN=$WP_ADMIN \
+    WP_ADMIN_PASS=$WP_ADMIN_PASS \
+    WP_ADMIN_MAIL=$WP_ADMIN_MAIL \
+    WP_USER=$WP_USER \
+    WP_USER_PASS=$WP_USER_PASS \
+    WP_USER_MAIL=$WP_USER_MAIL
+
 RUN apk update && apk upgrade && apk add --no-cache \
     php${PHP_VERSION} \
     php${PHP_VERSION}-fpm \
@@ -54,5 +61,16 @@ RUN apk del wget && \
 COPY ./requirements/wordpress/conf/wp-config-create.sh .
 
 RUN sh wp-config-create.sh && rm wp-config-create.sh && chmod -R 0777 wp-content/
+
+ENTRYPOINT wp core is-installed || wp core install --url="https://localhost:42443" \
+	--title="Inception" \
+	--admin_user=${WP_ADMIN} \
+	--admin_password=${WP_ADMIN_PASS} \
+	--admin_email=${WP_ADMIN_MAIL}
+#RUN user create ${WP_USER} \
+#	${WP_USER_MAIL} \
+#	--role=administrator \
+#	--user_pass=${WP_USER_PASS}
+#
 
 CMD ["/usr/sbin/php-fpm82", "-F"]

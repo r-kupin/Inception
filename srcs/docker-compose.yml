@@ -35,6 +35,11 @@ services:
     volumes:
       - db-volume:/var/lib/mysql
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -hlocalhost -uroot -p${DB_ROOT}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   wordpress:
     build:
@@ -43,23 +48,23 @@ services:
       args:
         DB_NAME: ${DB_NAME}
         DB_ROOT: ${DB_ROOT}
-	DB_USER: ${DB_USER}
-	DB_PASS: ${DB_PASS}
-	WP_ADMIN: ${WP_ADMIN}
-	WP_ADMIN_PASS: ${WP_ADMIN_PASS}
-	WP_ADMIN_MAIL: ${WP_ADMIN_MAIL}
-	WP_USER: ${WP_USER}
-	WP_USER_PASS: ${WP_USER_PASS}
-	WP_USER_MAIL: ${WP_USER_MAIL}
+        DB_USER: ${DB_USER}
+        DB_PASS: ${DB_PASS}
+        WP_ADMIN: ${WP_ADMIN}
+        WP_ADMIN_PASS: ${WP_ADMIN_PASS}
+        WP_ADMIN_MAIL: ${WP_ADMIN_MAIL}
+        WP_USER: ${WP_USER}
+        WP_USER_PASS: ${WP_USER_PASS}
+        WP_USER_MAIL: ${WP_USER_MAIL}
     container_name: wordpress
     depends_on:
       - mariadb
-    restart: always
     networks:
       - inception
     volumes:
       - wp-volume:/var/www/
-
+    restart: always
+ 
 volumes:
   wp-volume:
     driver_opts:

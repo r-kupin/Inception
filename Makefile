@@ -2,7 +2,7 @@ name = inception
 all:
 	@printf "Launch configuration ${name}...\n"
 	@bash srcs/requirements/tools/make_dir.sh
-	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build mariadb wordpress nginx
 
 maria:
 	@printf "(re)creating mariadb...\n"
