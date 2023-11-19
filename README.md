@@ -18,8 +18,21 @@ Step by step guide to my Inception project done on Debian VM. Based on [codesham
 	13. **wget**: a command-line utility for downloading files from the internet. It can be used to retrieve files from web servers, FTP servers, and various other protocols. Will be used to install `mkcert`
 	14. **libnss3-tools**: a collection of command-line tools related to the Network Security Services (NSS) library. This library provides support for [SSL/TLS](ttps://aws.amazon.com/what-is/ssl-certificate/), and it's used for secure network communications. Is a dependency of `mkcert`
 ## Set up services on VM
-1. **ssh**: `PasswordAuthentication yes`, cause it's not a production machine it is acceptable. Restart *sshd* after modifying config
-2. **firewall**: allow ports that will be used: `22` -  default for *ssh*, `80` - *http* and `443` - *https*
+### sudo
+let non-root account to use `sudo` and `docker`
+- add non-root user to `/etc/sudoers` file
+- add non-root to docker group `sudo usermod -aG docker ` non-root-username, to let the use of docker without `sudo` by a non-root user
+### firewall
+allow ports that will be used: `22` -  default for *ssh*, `80` - *http* and `443` - *https*
+### SSH
+Set some security settings. In `/etc/ssh/sshd-config`
+```
+PermitEmptyPasswords no
+PermitRootLogin no
+AllowUsers rokupin
+PasswordAuthentication no
+PublicKeyAuthentication yes
+```
 ## Port forwarding
 Inside VirtualBox: Current machine > settings > network > Advanced > Port forwarding. Without port forwarding there is no way to access VM via network connection. 
 ```
@@ -30,11 +43,6 @@ Inside VirtualBox: Current machine > settings > network > Advanced > Port forwar
 |   HTTPS  |     42443 |        443 |
 ```
 The ports with number less than *1024* are reserved by system
-## First login with ssh
-1. login as root:  `ssh root@localhost -p 4222`
-2. let non-root account to use `sudo` and `docker`
-	- add non-root user to `/etc/sudoers` file
-	- add non-root to docker group `sudo usermod -aG docker ` non-root-username, to let the use of docker without `sudo` by a non-root user
 ## Set up certificates
 ### Install [mkcert](https://github.com/FiloSottile/mkcert)
 - Run `url -s https://api.github.com/repos/FiloSottile/mkcert/releases/latest| grep browser_download_url  | grep linux-amd64 | cut -d '"' -f 4 | wget -qi -`
@@ -43,7 +51,7 @@ The ports with number less than *1024* are reserved by system
 Subject requirement is that our domain name should be rokupin.42.fr
 In order to achieve this we need to modify `/etc/hosts` file - add desired hostname in line with `localhost`. After this operation we'll be able to access our web service via specified address while inside VM's terminal.
 ### Getting self-signed certificate
-All certificates should be placed inside `requirements/tools`. Run `mkcert rokupin.42.fr` in this directory. Then, rename certificate files in a way nginx will understand: 
+All certificates should be placed inside `~/project/requirements/nginx/tools`. Run `mkcert rokupin.42.fr` in this directory. Then, rename certificate files in a way nginx will understand: 
 `mv rokupin.42.fr-key.pem rokupin.42.fr.key`
 `mv rokupin.42.fr.pem rokupin.42.fr.crt`
 ## Set up environment variables for the containers `.env`
@@ -56,6 +64,12 @@ DB_NAME=wordpress
 DB_ROOT=rootpass
 DB_USER=wpuser
 DB_PASS=wppass
+WP_ADMIN=wproot
+WP_ADMIN_PASS=wprootpass
+WP_ADMIN_MAIL=planesvvalker@gmail.com
+WP_USER=rokupin
+WP_USER_PASS=rokupinpass
+WP_USER_MAIL=rokupin@student.42.fr
 ```
 ## Create a little shell library that will help automatically edit config files at the container's build time with sed    `confedit.sh`
 In `~/project/srcs/requirements/tools/`
@@ -158,7 +172,7 @@ bind-address=0.0.0.0
 ```
 ### Script to create DB `create_db.sh`
 In `~/project/srcs/requirements/mariadb/tools`
-SQL queries are passed through `cat`, because the access to env variables is required to resolve the name of databese, user, etc. But SQL engine can't resolve them, so at the first step `sh` substitutes values of the variables in place of their names, and only then the script is passed to `mysqld` engine
+SQL queries are passed through shell, because the access to env variables is required to resolve the name of databese, user, etc. But SQL engine can't resolve them, so at the first step `sh` substitutes values of the variables in place of their names, and only then the script is passed to `mysqld` engine
 ```bash
 #!bin/sh
 
@@ -246,9 +260,17 @@ In `~/project/srcs/requirements/wordpress`
 FROM alpine:3.18.4
 # latest stable php for now 8.2, but it is written 82
 ARG PHP_VERSION=82 \
-    DB_NAME \
+	# Neded to setup connection to the database
+    DB_ROOT \
     DB_USER \
-    DB_PASS
+    DB_PASS \
+    # Wordpress users data
+    WP_ADMIN \
+    WP_ADMIN_PASS \
+    WP_ADMIN_MAIL \
+    WP_USER \
+    WP_USER_PASS \
+    WP_USER_MAIL
 # required modules for wordpress
 RUN apk update && apk upgrade && apk add --no-cache \
 	# The PHP interpreter itself
@@ -278,27 +300,39 @@ RUN apk update && apk upgrade && apk add --no-cache \
     php${PHP_VERSION}-xml \
 	# Allows PHP to work with ZIP archives.
     php${PHP_VERSION}-zip \
+    # PHP Archive (phar) manager. Needed to install wp-cli
+    php${PHP_VERSION}-phar \
 	# Interface to communicate with Redis, an in-memory data structure store (bonus)
     php${PHP_VERSION}-redis \
     wget \
 	unzip
+
+COPY requirements/tools/confedit.sh .
 ```
-fix php-fpm config in-place
+fix php-fpm config in-place and create symlinks for php82->php, because wp-cli is version-agnostic, and refers to php binary as "php" and not php82, as it is called by default
 ```Dockerfile
 # The address on which to accept FastCGI requests
-RUN sh confedit.sh "listen =" 9000  /etc/php82/php-fpm.d/www.conf " "
+RUN sh confedit.sh "listen =" 9000  /etc/php82/php-fpm.d/www.conf " " && \
+	# create links
+	ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php
 ```
 The [`WORKDIR`](https://docs.docker.com/engine/reference/builder/#workdir) instruction sets the working directory for any `RUN`, `CMD`, `ENTRYPOINT`, `COPY` and `ADD` instructions that follow it in the `Dockerfile`.
 **/var/www** - is a default location where php-fpm will look for php files
 ```Dockerfile
 WORKDIR /var/www
 ```
-Install wordpress
+Install wordpress and remove archive
 ```Dockerfile
 RUN wget https://wordpress.org/latest.zip && \
     unzip latest.zip && \
     cp -rf wordpress/* . && \
     rm -rf wordpress latest.zip
+```
+Install WP-CLI, to be able to initialize website automatically, move to `/bin` and make accessible as `wp`
+```Dockerfile
+RUN wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x wp-cli.phar && \
+    mv wp-cli.phar /usr/local/bin/wp
 ```
 Cleanup
 ```Dockerfile
@@ -309,14 +343,20 @@ RUN apk del wget && \
 Define WP config with database connection details, etc
 ```Dockerfile
 COPY ./requirements/wordpress/conf/wp-config-create.sh .
-RUN sh wp-config-create.sh && rm wp-config-create.sh && \
-    chmod -R 0777 wp-content/
+RUN sh wp-config-create.sh && rm wp-config-create.sh && chmod -R 0777 wp-content/
 ```
-Start PHP-FPM in foreground mode, so in case of errors we can check them in tty directly
+Create wp-cli core initializing script and entrypoint script
 ```Dockerfile
+COPY ./requirements/wordpress/tools/make_wp_core_install_script.sh .
+RUN sh make_wp_core_install_script.sh && rm make_wp_core_install_script.sh
+```
+Execute preconfiguration script and start php-fpm. `CMD` gets actually appended to `ENTRYPOINT`, so in fact, container starts with `sh entrypoint.sh /usr/sbin/php-fpm82 -F` command
+```Dockerfile
+ENTRYPOINT ["sh", "entrypoint.sh"]
 CMD ["/usr/sbin/php-fpm82", "-F"]
 ```
 ### Create config [`wp-config-create.sh`](https://developer.wordpress.org/advanced-administration/before-install/howto-install/#detailed-step-3)
+Here, the idea is similar to [[README#Script to create DB `create_db.sh`]] - but the output with expanded variables redirected to the file `wp-config.php`, that will be used to connect to the database, etc..
 In `~/project/srcs/requirements/wordpress/conf`
 ```bash
 #!bin/sh
@@ -344,7 +384,109 @@ require_once ABSPATH . 'wp-settings.php';
 EOF
 fi
 ```
+And here is how `wp-config.php` looks after variable expansion:
+```php
+<?php
+define( 'DB_NAME', 'wordpress' );
+define( 'DB_USER', 'wpuser' );
+define( 'DB_PASSWORD', 'wppass' );
+define( 'DB_HOST', 'mariadb' );
+define( 'DB_CHARSET', 'utf8' );
+define( 'DB_COLLATE', '' );
+define('FS_METHOD','direct');
+$table_prefix = 'wp_';
+define( 'WP_DEBUG', false );
+if ( ! defined( 'ABSPATH' ) ) {
+define( 'ABSPATH', __DIR__ . '/' );}
+define( 'WP_REDIS_HOST', 'redis' );
+define( 'WP_REDIS_PORT', 6379 );
+define( 'WP_REDIS_TIMEOUT', 1 );
+define( 'WP_REDIS_READ_TIMEOUT', 1 );
+define( 'WP_REDIS_DATABASE', 0 );
+require_once ABSPATH . 'wp-settings.php';
+```
+### Create `make_wp_core_install_script.sh`
+Here's almost the same, but this file is used to generate other two scripts:
+1. `wp_core_install` to actually perform creation of 2 users with credentials
+2. `entrypoint` to run the first script, then delete it (because it contains user credentials including passwords in unencrypted form) and execute the main service, which will be `/usr/sbin/php-fpm82`
+In ``~/project/srcs/requirements/wordpress/tools`
+```bash
+#!/bin/sh
 
+cat >> wp_core_install.sh << EOF
+#!/bin/sh
+wp_admin='${WP_ADMIN}'
+wp_admin_pass='${WP_ADMIN_PASS}'
+wp_admin_mail='${WP_ADMIN_MAIL}'
+
+wp_user='${WP_USER}'
+wp_user_pass='${WP_USER_PASS}'
+wp_user_mail='${WP_USER_MAIL}'
+
+if ! wp core is-installed; then
+    wp core install \
+        --url="https://localhost:42443" \
+        --title="Inception" \
+        --admin_user="\$wp_admin" \
+        --admin_password="\$wp_admin_pass" \
+        --admin_email="\$wp_admin_mail"
+
+    wp user create \
+        "\$wp_user" \
+	"\$wp_user_mail" \
+	--user_pass="\$wp_user_pass"
+fi
+EOF
+
+cat >> entrypoint.sh << EOF
+#!/bin/sh
+
+sh wp_core_install.sh
+rm wp_core_install.sh
+exec "\$@"
+
+EOF
+
+chmod +x wp_core_install.sh entrypoint.sh
+```
+The multi-step expansion is needed, because all the sensitive data are defined in the dockerfile as `ARG` - which means that it will exist only in the temporary build-time images, and will not be present in the runtime.
+However, we need some of this data in the runtime, because user creation operations involve modifying the database, which in the build time won't be up.
+So in order to sneak needed date into run-time-init operations the temporary script file `wp_core_install.sh` is made. The variables are expanded in the build time into `wp_core_install.sh` file, which should be executed right after container's startup and removed before the start of container's main service.
+```bash
+#!/bin/sh
+wp_admin='wproot'
+wp_admin_pass='wprootpass'
+wp_admin_mail='planesvvalker@gmail.com'
+
+wp_user='rokupin'
+wp_user_pass='rokupinpass'
+wp_user_mail='rokupin@student.42.fr'
+
+if ! wp core is-installed; then
+    wp core install \
+        --url="https://localhost:42443" \
+        --title="Inception" \
+        --admin_user="$wp_admin" \
+        --admin_password="$wp_admin_pass" \
+        --admin_email="$wp_admin_mail"
+
+    wp user create \
+        "$wp_user" \
+	"$wp_user_mail" \
+	--user_pass="$wp_user_pass"
+fi
+```
+And that's what `entrypoint.sh` file is made for. At the container's `ENTRYPOINT`, the following script get's executed. 
+- executes `wp_core_install`
+- immediately removes it, because data in `wp_core_install` is a security hole
+- starts container's `CMD` - that get's appended as argument 
+```bash
+#!/bin/sh
+
+sh wp_core_install.sh
+rm wp_core_install.sh
+exec "$@"
+```
 ## [Nginx](https://www.nginx.com/resources/glossary/nginx/)
 ### Create Dockerfile
 In `~/project/srcs/requirements/nginx/`
@@ -369,7 +511,7 @@ The main purpose of a [`CMD`](https://docs.docker.com/engine/reference/builder/#
 CMD ["nginx", "-g", "daemon off;"]
 ```
 ### Create config `nginx.conf`
-Inside container config will be mounted to `/etc/nginx/http.d/` - the reserved directory that in turn gets included in the main config, created during instalation `/etc/nginx/nginx.conf` 
+Inside container - config will be mounted to `/etc/nginx/http.d/` - the reserved directory that in turn gets included in the main config, created during instalation `/etc/nginx/nginx.conf` 
 ```nginx
 ...
 	# Includes virtual hosts configs.
@@ -387,7 +529,7 @@ server {
     # Set the root directory for the website
     root    /var/www/;
     index index.php;
-    ```
+```
 #### Tweaking SSL
 SSL sessions are used to store the state of a client-server interaction securely. 
 - After 10 minutes of inactivity, the `ssl_session_timeout` will expire, requiring a new SSL handshake. This helps manage server resources and enhances security.
@@ -494,17 +636,24 @@ services:
       context: .
       dockerfile: requirements/wordpress/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
+	    DB_NAME: ${DB_NAME}
+		DB_ROOT: ${DB_ROOT}
+		DB_USER: ${DB_USER}
+		DB_PASS: ${DB_PASS}
+		WP_ADMIN: ${WP_ADMIN}
+		WP_ADMIN_PASS: ${WP_ADMIN_PASS}
+		WP_ADMIN_MAIL: ${WP_ADMIN_MAIL}
+		WP_USER: ${WP_USER}
+		WP_USER_PASS: ${WP_USER_PASS}
+		WP_USER_MAIL: ${WP_USER_MAIL}
     container_name: wordpress
     depends_on:
       - mariadb
-    restart: always
     networks:
       - inception
     volumes:
       - wp-volume:/var/www/
+	restart: always
 
 volumes:
   wp-volume:
