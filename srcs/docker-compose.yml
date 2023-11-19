@@ -35,11 +35,6 @@ services:
     volumes:
       - db-volume:/var/lib/mysql
     restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -hlocalhost -uroot -p${DB_ROOT}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   wordpress:
     build:

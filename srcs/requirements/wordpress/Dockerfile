@@ -32,8 +32,7 @@ RUN apk update && apk upgrade && apk add --no-cache \
 COPY requirements/tools/confedit.sh .
 
 RUN sh confedit.sh "listen =" 9000  /etc/php82/php-fpm.d/www.conf " " && \
-	ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php && \
-	ln -s /etc/php${PHP_VERSION}/php.ini /etc/php.ini
+	ln -s /usr/bin/php${PHP_VERSION} /usr/bin/php
 
 WORKDIR /var/www
 
@@ -52,9 +51,9 @@ RUN apk del wget && \
 	apk cache clean
 
 COPY ./requirements/wordpress/conf/wp-config-create.sh .
-COPY ./requirements/wordpress/tools/make_wp_core_install_script.sh .
-
 RUN sh wp-config-create.sh && rm wp-config-create.sh && chmod -R 0777 wp-content/
+
+COPY ./requirements/wordpress/tools/make_wp_core_install_script.sh .
 RUN sh make_wp_core_install_script.sh && rm make_wp_core_install_script.sh
 
 ENTRYPOINT ["sh", "entrypoint.sh"]
