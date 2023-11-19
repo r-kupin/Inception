@@ -14,11 +14,11 @@ maria:
 
 wp:
 	@printf "(re)creating wordpress...\n"
-	@docker stop wordpress
+#	@docker stop wordpress
 	@docker rm -v wordpress
 	@sudo rm -rf ~/data/wordpress/*
 	@bash srcs/requirements/tools/make_dir.sh
-	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build wordpress
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up  --build wordpress
 
 nginx:
 	@printf "(re)creating nginx...\n"
