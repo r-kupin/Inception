@@ -1,9 +1,11 @@
 FROM alpine:3.18.4
 
-ARG PHP_VERSION=82 DB_NAME \
+ARG PHP_VERSION=82 \ 
+    DB_NAME \
     DB_ROOT \
     DB_USER \
     DB_PASS \
+    DOMAIN_NAME \
     WP_ADMIN \
     WP_ADMIN_PASS \
     WP_ADMIN_MAIL \

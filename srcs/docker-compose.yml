@@ -45,6 +45,7 @@ services:
         DB_ROOT: ${DB_ROOT}
         DB_USER: ${DB_USER}
         DB_PASS: ${DB_PASS}
+        DOMAIN_NAME: ${DOMAIN_NAME}
         WP_ADMIN: ${WP_ADMIN}
         WP_ADMIN_PASS: ${WP_ADMIN_PASS}
         WP_ADMIN_MAIL: ${WP_ADMIN_MAIL}
