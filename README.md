@@ -415,6 +415,10 @@ In ``~/project/srcs/requirements/wordpress/tools`
 
 cat >> wp_core_install.sh << EOF
 #!/bin/sh
+
+dom_name='${DOMAIN_NAME}'
+localhost='https://localhost:42443'
+
 wp_admin='${WP_ADMIN}'
 wp_admin_pass='${WP_ADMIN_PASS}'
 wp_admin_mail='${WP_ADMIN_MAIL}'
@@ -424,16 +428,16 @@ wp_user_pass='${WP_USER_PASS}'
 wp_user_mail='${WP_USER_MAIL}'
 
 if ! wp core is-installed; then
-    wp core install \
-        --url="https://localhost:42443" \
-        --title="Inception" \
-        --admin_user="\$wp_admin" \
-        --admin_password="\$wp_admin_pass" \
+    wp core install \\
+        --url="\$localhost" \\
+        --title="Inception" \\
+        --admin_user="\$wp_admin" \\
+        --admin_password="\$wp_admin_pass" \\
         --admin_email="\$wp_admin_mail"
 
-    wp user create \
-        "\$wp_user" \
-	"\$wp_user_mail" \
+    wp user create \\
+        "\$wp_user" \\
+	"\$wp_user_mail" \\
 	--user_pass="\$wp_user_pass"
 fi
 EOF
@@ -454,6 +458,10 @@ However, we need some of this data in the runtime, because user creation operati
 So in order to sneak needed date into run-time-init operations the temporary script file `wp_core_install.sh` is made. The variables are expanded in the build time into `wp_core_install.sh` file, which should be executed right after container's startup and removed before the start of container's main service.
 ```bash
 #!/bin/sh
+
+dom_name='https://rokupin.42.fr'
+localhost='https://localhost:42443'
+
 wp_admin='wproot'
 wp_admin_pass='wprootpass'
 wp_admin_mail='planesvvalker@gmail.com'
@@ -464,7 +472,7 @@ wp_user_mail='rokupin@student.42.fr'
 
 if ! wp core is-installed; then
     wp core install \
-        --url="https://localhost:42443" \
+        --url="$localhost" \
         --title="Inception" \
         --admin_user="$wp_admin" \
         --admin_password="$wp_admin_pass" \
