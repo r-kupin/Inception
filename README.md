@@ -636,16 +636,16 @@ services:
       context: .
       dockerfile: requirements/wordpress/Dockerfile
       args:
-	    DB_NAME: ${DB_NAME}
+            DB_NAME: ${DB_NAME}
             DB_ROOT: ${DB_ROOT}
             DB_USER: ${DB_USER}
-	    DB_PASS: ${DB_PASS}
+            DB_PASS: ${DB_PASS}
             WP_ADMIN: ${WP_ADMIN}
-	    WP_ADMIN_PASS: ${WP_ADMIN_PASS}
-	    WP_ADMIN_MAIL: ${WP_ADMIN_MAIL}
-	    WP_USER: ${WP_USER}
-	    WP_USER_PASS: ${WP_USER_PASS}
-	    WP_USER_MAIL: ${WP_USER_MAIL}
+            WP_ADMIN_PASS: ${WP_ADMIN_PASS}
+            WP_ADMIN_MAIL: ${WP_ADMIN_MAIL}
+            WP_USER: ${WP_USER}
+            WP_USER_PASS: ${WP_USER_PASS}
+            WP_USER_MAIL: ${WP_USER_MAIL}
     container_name: wordpress
     depends_on:
       - mariadb
