@@ -2,6 +2,7 @@
 
 cat >> wp_core_install.sh << EOF
 #!/bin/sh
+
 wp_admin='${WP_ADMIN}'
 wp_admin_pass='${WP_ADMIN_PASS}'
 wp_admin_mail='${WP_ADMIN_MAIL}'
@@ -29,7 +30,7 @@ cat >> entrypoint.sh << EOF
 #!/bin/sh
 
 sh wp_core_install.sh
-#rm wp_core_install.sh
+rm wp_core_install.sh
 exec "\$@"
 
 EOF
