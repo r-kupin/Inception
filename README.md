@@ -29,7 +29,7 @@ Set some security settings. In `/etc/ssh/sshd-config`
 ```
 PermitEmptyPasswords no
 PermitRootLogin no
-AllowUsers rokupin
+AllowUsers login
 PasswordAuthentication no
 PublicKeyAuthentication yes
 ```
@@ -48,18 +48,18 @@ The ports with number less than *1024* are reserved by system
 - Run `url -s https://api.github.com/repos/FiloSottile/mkcert/releases/latest| grep browser_download_url  | grep linux-amd64 | cut -d '"' -f 4 | wget -qi -`
 - rename executable to `mkcert` and move to `/usr/local/bin`
 ### Change domain name
-Subject requirement is that our domain name should be rokupin.42.fr
+Subject requirement is that our domain name should be login.42.fr
 In order to achieve this we need to modify `/etc/hosts` file - add desired hostname in line with `localhost`. After this operation we'll be able to access our web service via specified address while inside VM's terminal.
 ### Getting self-signed certificate
-All certificates should be placed inside `~/project/requirements/nginx/tools`. Run `mkcert rokupin.42.fr` in this directory. Then, rename certificate files in a way nginx will understand: 
-`mv rokupin.42.fr-key.pem rokupin.42.fr.key`
-`mv rokupin.42.fr.pem rokupin.42.fr.crt`
+All certificates should be placed inside `~/project/requirements/nginx/tools`. Run `mkcert login.42.fr` in this directory. Then, rename certificate files in a way nginx will understand: 
+`mv login.42.fr-key.pem login.42.fr.key`
+`mv login.42.fr.pem login.42.fr.crt`
 ## Set up environment variables for the containers `.env`
 In `~/project/srcs`
 ```
-DOMAIN_NAME=rokupin.42.fr
-CERT_=./requirements/tools/rokupin.42.fr.crt
-KEY_=./requirements/tools/rokupin.42.fr.key
+DOMAIN_NAME=login.42.fr
+CERT_=./requirements/tools/login.42.fr.crt
+KEY_=./requirements/tools/login.42.fr.key
 DB_NAME=wordpress
 DB_ROOT=rootpass
 DB_USER=wpuser
@@ -67,9 +67,9 @@ DB_PASS=wppass
 WP_ADMIN=wproot
 WP_ADMIN_PASS=wprootpass
 WP_ADMIN_MAIL=wproot@wp.root
-WP_USER=rokupin
-WP_USER_PASS=rokupinpass
-WP_USER_MAIL=rokupin@student.42.fr
+WP_USER=login
+WP_USER_PASS=loginpass
+WP_USER_MAIL=login@student.42.fr
 ```
 ## Create a little shell library that will help automatically edit config files at the container's build time with sed    `confedit.sh`
 In `~/project/srcs/requirements/tools/`
@@ -459,16 +459,16 @@ So in order to sneak needed date into run-time-init operations the temporary scr
 ```bash
 #!/bin/sh
 
-dom_name='https://rokupin.42.fr'
+dom_name='https://login.42.fr'
 localhost='https://localhost:42443'
 
 wp_admin='wproot'
 wp_admin_pass='wprootpass'
-wp_admin_mail='planesvvalker@gmail.com'
+wp_admin_mail='wproot@wp.root'
 
-wp_user='rokupin'
-wp_user_pass='rokupinpass'
-wp_user_mail='rokupin@student.42.fr'
+wp_user='login'
+wp_user_pass='loginpass'
+wp_user_mail='login@student.42.fr'
 
 if ! wp core is-installed; then
     wp core install \
@@ -533,7 +533,7 @@ server {
     # Listen on port 443 (HTTPS) with SSL enabled
     listen      443 ssl;
 	# Define the server names (domain) for this configuration
-    server_name  rokupin.42.fr www.rokupin.42.fr;
+    server_name  login.42.fr www.login.42.fr;
     # Set the root directory for the website
     root    /var/www/;
     index index.php;
@@ -544,9 +544,9 @@ SSL sessions are used to store the state of a client-server interaction securely
 - `keepalive_timeout` sets the maximum time a connection is kept open between the client and the server. In this case, it's set to 60 seconds. Keeping connections alive reduces the overhead of establishing new connections for subsequent requests from the same client
 ```nginx
 	# Set the SSL certificate file
-    ssl_certificate     /etc/nginx/ssl/rokupin.42.fr.crt;
+    ssl_certificate     /etc/nginx/ssl/login.42.fr.crt;
     # Set the SSL certificate key file 
-    ssl_certificate_key /etc/nginx/ssl/rokupin.42.fr.key;
+    ssl_certificate_key /etc/nginx/ssl/login.42.fr.key;
     # Define supported SSL/TLS protocols (subj requirement)
     ssl_protocols            TLSv1.2 TLSv1.3;
     # Set the SSL session timeout to 10 minutes
@@ -556,8 +556,8 @@ SSL sessions are used to store the state of a client-server interaction securely
 ```
 #### Root location
 Handles requests when the URI matches the root path - requests made to the main domain or the default path of the website. Such as:
-1. *Direct Access to the Root Path*: like https://rokupin.42.fr/
-2. *Requests for Static Files in root directory*: like https://rokupin.42.fr/logo.jpg
+1. *Direct Access to the Root Path*: like https://login.42.fr/
+2. *Requests for Static Files in root directory*: like https://login.42.fr/logo.jpg
 3. *Fallback for PHP Processing:* If the attempt to serve a static file directly fails, the `try_files $uri /index.php?$args;` line rewrites the request to "/index.php" with any query parameters appended. This directive is essential for WordPress ensuring that pretty permalinks and other  features work as expected.
 ```nginx
     location / {
