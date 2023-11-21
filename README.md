@@ -429,7 +429,7 @@ wp_user_mail='${WP_USER_MAIL}'
 
 if ! wp core is-installed; then
     wp core install \\
-        --url="\$localhost" \\
+        --url="\$localhost" \\ # if you want to access from host machine, or --url="\$dom_name" to access from inside VM
         --title="Inception" \\
         --admin_user="\$wp_admin" \\
         --admin_password="\$wp_admin_pass" \\
